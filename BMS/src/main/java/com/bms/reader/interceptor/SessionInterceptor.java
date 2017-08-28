@@ -24,7 +24,9 @@ public class SessionInterceptor implements HandlerInterceptor {
      * 完成页面的render后调用
      */
     @Override
-    public void afterCompletion(HttpServletRequest request,HttpServletResponse response, Object object, Exception exception)throws Exception {
+    public void afterCompletion(HttpServletRequest request,
+                                HttpServletResponse response, Object object, Exception exception)
+            throws Exception {
 
     }
 
