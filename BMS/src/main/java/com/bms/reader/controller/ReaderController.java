@@ -48,6 +48,7 @@ public class ReaderController extends MultiActionController {
     @Autowired
     private ExportInfoService exportInfoService;
     
+    private String testgit;
     private String testgitss;
     /**
      * Ctrl+Shift+O(导入未添加的包)
