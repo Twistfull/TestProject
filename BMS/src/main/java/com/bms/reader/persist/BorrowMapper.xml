@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.bms.reader.persist.BorrowMapper">
+	<!-- 定义resultMap -->
+	<!-- 借书记录查询关联读者及图书 -->
+	<resultMap type="com.bms.reader.model.BorrowPojo" id="BorrowReaderBookResultMap">
+		
+		<id column="RECORD_ID" property="recordId"/>
+		<result column="READER_ID" property="readerId" />
+		<result column="BOOK_ID" property="bookId" />
+		<result column="START_DATE" property="startDate"/>
+		<result column="END_DATE" property="endDate"/>
+		<!-- 配置映射的关联的读者信息 -->
+		<association property="reader" javaType="com.bms.reader.model.ReaderReader">
+		<id column="READER_ID" property="id"/>
+		<result column="READER_NAME" property="readerName"/>
+		</association>
+		<!-- 配置映射的关联的图书信息 -->
+		<association property="bookInfo" javaType="com.bms.reader.model.BookInfo">
+		<id column="BOOK_ID" property="bookId"/>
+		<result column="BOOK_NAME" property="bookName"/>
+		</association>
+	</resultMap>
+	<!-- 查找借书记录，关联读者及图书 -->
+	<select id="findBorrowReaderBook" resultMap="BorrowReaderBookResultMap" parameterType="com.bms.reader.model.BorrowQueryVo">
+		select BORROW_INFO.*,READER_READER.READER_NAME,BOOK_INFO.BOOK_NAME from BORROW_INFO, READER_READER,
+		BOOK_INFO where BORROW_INFO.READER_ID=READER_READER.ID and BORROW_INFO.BOOK_ID=BOOK_INFO.BOOK_ID
+	</select>
+	
+	<!-- 查找借书记录数 -->
+	<select id="findBorrowCount" resultType="int">
+		select count(*) from BORROW_INFO
+	</select>
+	
+	<!-- 查找指定日期外借图书数量 -->
+	<select id="findOutNum" parameterType="int" resultType="int">
+		select count(*) from BORROW_INFO where START_DATE =trunc(sysdate-#{value})
+	</select>
+	
+</mapper>

@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!-- 这里namespace必须是UserMapper接口的路径，不然要运行的时候要报错 "is not known to the MapperRegistry" -->
+<mapper namespace="com.bms.reader.persist.BorrowInfoMapper" >
+<!-- 要对应到所有属性 才能使用-->
+  <resultMap id="BaseResultMap" type="com.bms.reader.model.BorrowInfo" >
+      <id property="recordId" column="RECORD_ID" jdbcType="VARCHAR" javaType="java.lang.String" /><!--jdbcType 对可能为空的值进行处理 -->
+      <result property="readerId" column="READER_ID"  jdbcType="VARCHAR" javaType="java.lang.String" /><!-- 使用idAeg 而不用id result是由于有构造方法元素 -->
+      <result property="bookId" column="BOOK_ID" jdbcType="VARCHAR" javaType="java.lang.String" />
+      <result property="startDate" column="START_DATE" jdbcType="DATE" javaType="java.util.Date" />
+      <result property="endDate" column="END_DATE" jdbcType="DATE" javaType="java.util.Date" />
+  </resultMap>
+  
+   <resultMap id="borrowinfoResultMap" type="com.bms.reader.model.BorrowInfo" >
+      <id property="recordId" column="RECORD_ID" jdbcType="VARCHAR" javaType="java.lang.String" /><!--jdbcType 对可能为空的值进行处理 -->
+      <result property="readerId" column="READER_ID" jdbcType="VARCHAR" javaType="java.lang.String" /><!-- 使用idAeg 而不用id result是由于有构造方法元素 -->
+      <result property="bookId" column="BOOK_ID" jdbcType="VARCHAR" javaType="java.lang.String" />
+      <result property="startDate" column="START_DATE" jdbcType="DATE" javaType="java.util.Date" />
+      <result property="endDate"  column="END_DATE" jdbcType="DATE" javaType="java.util.Date" />
+      <association property="bookInfo" javaType="com.bms.reader.model.BookInfo" 
+       resultMap="com.bms.reader.persist.BookInfoMapper.bookInfoResultMap"/>
+      <association property="returnInfo" javaType="com.bms.reader.model.ReturnInfo" 
+       resultMap="com.bms.reader.persist.ReturnInfoMapper.BaseResultMap"/>
+  </resultMap>
+  <sql id="Base_Column_List" >
+   RECORD_ID,READER_ID,BOOK_ID,START_DATE,END_DATE
+  </sql>
+
+ <!--  <select id="selectByUserName" resultMap="BaseResultMap" parameterType="java.lang.String" >
+    select
+    <include refid="Base_Column_List" />
+    from READERUSER
+    where username = #{username,jdbcType=VARCHAR}
+  </select>-->
+
+  <insert id="insert"  parameterType="com.bms.reader.model.BorrowInfo" >
+    <selectKey keyProperty="recordId" resultType="String" order="BEFORE">  
+        select  replace(sys_guid(),'-','')   from dual <!--通过sys_guid生成 标识符，并用" "替换"-"--> 
+    </selectKey> 
+    insert into BORROW_INFO(RECORD_ID,READER_ID,BOOK_ID,START_DATE,END_DATE)
+    values (#{recordId,jdbcType=VARCHAR}, #{readerId,jdbcType=VARCHAR}, #{bookId,jdbcType=VARCHAR},
+    #{startDate,jdbcType=DATE},#{endDate,jdbcType=DATE})
+  </insert>
+  
+  
+  <insert id="insertreturn"  parameterType="java.lang.String" >
+   
+     insert into RETURN_INFO(RECORD_ID)
+    values (#{recordId,jdbcType=VARCHAR})
+  </insert>
+ 
+ <sql id="filter_sql" >
+    <if test="recordId != null" >
+      and RECORD_ID = #{recordId}
+    </if>
+    <if test="readerId != null" >
+      and READER_ID = #{readerId}
+    </if>
+     <if test="startDate,endDate != null" >
+      and START_DATE &gt;= #{startDate}
+    </if>
+     <if test="endDate != null" >
+      and START_DATE  &lt;= #{endDate}
+    </if>
+    
+    <if test="bookInfo!= null" >
+         <if test="bookInfo.bookName!= null" >
+         and BOOK_NAME like '%${bookInfo.bookName}%'<!-- 根据书籍名称查询 -->
+        </if>
+        <if test="bookInfo.bookStatus!= null" >
+         and BOOK_STATUS = #{bookInfo.bookStatus}<!-- 根据书籍在架状态判断是否归还 -->
+        </if>
+    </if>
+    
+     <if test="returnInfo!= null" >
+         <if test="returnInfo.payExplain!= null" >
+              <if test="returnInfo.payExplain == '未处理'" >
+              and PAY_EXPLAIN IS NULL<!-- 根据归还状态判断是否归还 -->
+              </if>
+              <if test="returnInfo.payExplain == '已处理'" >
+              and PAY_EXPLAIN = #{returnInfo.payExplain}<!-- 根据归还状态判断是否归还 -->
+              </if>
+         
+        </if>
+         
+         <!-- <if test="returnInfo.payExplain == null or returnInfo.payExplain == ''" >
+         and PAY_EXPLAIN IS NULL根据归还状态判断是否归还
+         </if> -->
+    </if>
+    
+                              <!-- 关联查询时,Date类型需要as方式指定名称,不然查不出来 -->
+  <!--   <if test="bookName != null" >
+      and BOOK_NAME like '%${bookName}%'
+    </if>
+    <if test="bookAuthor != null" >
+      and BOOK_AUTHOR = #{bookAuthor}  &gt;是>的意思， &lt;是<的意思 
+    </if>
+    <if test="bookIntro != null" >
+      and BOOK_INTRO like '%${bookIntro}%'
+    </if> -->
+  </sql>
+   <select id="listAll" resultMap="borrowinfoResultMap" parameterType="com.bms.reader.model.BorrowInfo" >
+    select Borrow.*,Book.BOOK_NAME,BOOK_STATUS,PAY_EXPLAIN,PAY_FOR,BOOK_PRICE
+    from BORROW_INFO Borrow left join BOOK_INFO Book on Borrow.BOOK_ID=Book.BOOK_ID 
+                            left join RETURN_INFO Returns on Borrow.RECORD_ID=Returns.RECORD_ID
+<!--     <include refid="Base_Column_List" />
+    from BORROW_INFO -->
+    where 1 = 1
+    <include refid="filter_sql" />
+    order by START_DATE desc
+    </select>
+ <!--   <select id="selectByBookName" resultMap="BaseResultMap" parameterType="java.lang.String" >
+    select
+    <include refid="Base_Column_List" />
+    from BOOK_INFO
+    where BOOK_NAME != #{_paramete}
+  </select> -->
+  
+   <select id="selectByReaderId" resultMap="borrowinfoResultMap" parameterType="java.lang.String" >
+   
+  <!--  select fm.freight_gid,cf.city_name, ct.city_name city_name1  
+   from freight_mst fm  
+   left  join CITY  cf on cf.city_index=fm.from_city  
+   left  join CITY  ct on ct.city_index=fm.to_city  -->
+    select Borrow.*,Book.BOOK_NAME,BOOK_STATUS,PAY_EXPLAIN
+    from BORROW_INFO Borrow left join BOOK_INFO Book on Borrow.BOOK_ID=Book.BOOK_ID
+                            left join RETURN_INFO Returns on Borrow.RECORD_ID=Returns.RECORD_ID
+    where READER_ID = #{readerId,jdbcType=VARCHAR}
+  </select>
+  
+  <select id="selectByRecordId" resultMap="borrowinfoResultMap" parameterType="java.lang.String" >
+    select Borrow.*,Book.BOOK_PRICE,Book.BOOK_NAME,Book.BOOK_STATUS,Book.BOOK_ID
+    from BORROW_INFO Borrow left join BOOK_INFO Book on Borrow.BOOK_ID=Book.BOOK_ID 
+    where RECORD_ID = #{recordId,jdbcType=VARCHAR} 
+  </select>
+  
+  <select id="selectCountBorrow" resultType="Integer" parameterType="java.lang.String">
+    select COUNT(*)
+    from BORROW_INFO Borrow left join RETURN_INFO Returns on Borrow.RECORD_ID=Returns.RECORD_ID 
+    where READER_ID = #{readerId,jdbcType=VARCHAR}  and Returns.PAY_EXPLAIN IS NULL
+  </select>
+  
+  <select id="selectCountOverdue" resultType="Integer" parameterType="java.lang.String" >
+    select COUNT(*)
+    from BORROW_INFO Borrow left join RETURN_INFO Returns on Borrow.RECORD_ID=Returns.RECORD_ID 
+    where READER_ID = #{readerId,jdbcType=VARCHAR}  and (select  sysdate from dual)&gt;Borrow.END_DATE  and Returns.PAY_EXPLAIN IS NULL
+  </select>
+  
+ <!--  to_char(sysdate,'yyyy-MM-dd')  --> 
+   <select id="selectTipByReaderId" resultMap="borrowinfoResultMap"   >
+    select Borrow.*,Book.BOOK_NAME
+    from BORROW_INFO Borrow left join BOOK_INFO Book on Borrow.BOOK_ID=Book.BOOK_ID
+                            left join RETURN_INFO Returns on Borrow.RECORD_ID=Returns.RECORD_ID
+    where READER_ID = #{readerId,jdbcType=VARCHAR} and END_DATE &lt;=#{end,jdbcType=DATE} and END_DATE &gt;=#{start,jdbcType=DATE} and Returns.PAY_EXPLAIN IS NULL<!-- Date必须大写 -->
+    order by END_DATE asc
+  </select>
+  
+  <select id="payforAll" resultMap="borrowinfoResultMap"   >
+    select Borrow.*,Book.BOOK_NAME,Book.BOOK_PRICE,Returns.PAY_FOR,Returns.PAY_EXPLAIN,Returns.OVERDUE_DAY,Returns.RETURN_DATE
+    from BORROW_INFO Borrow left join BOOK_INFO Book on Borrow.BOOK_ID=Book.BOOK_ID
+                            left join RETURN_INFO Returns on Borrow.RECORD_ID=Returns.RECORD_ID
+    where READER_ID = #{readerId,jdbcType=VARCHAR}
+     <if test="id != 2" >
+         <if test=" id == 1" >
+             and PAY_EXPLAIN IS NULL
+         </if>
+         <if test="id == 0" >
+             and PAY_EXPLAIN = '已处理'
+         </if>
+    </if>
+   order by PAY_FOR asc
+  </select>
+  
+
+</mapper>
